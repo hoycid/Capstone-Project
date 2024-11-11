@@ -1,0 +1,428 @@
+Imports System.ComponentModel
+Imports System.IO
+Imports MySql.Data.MySqlClient
+
+
+
+Public Class Home
+
+    Dim ServerString As New MySqlConnection
+    Dim COMMAND As MySqlCommand
+
+
+
+
+
+
+
+    Private Sub Barcode_TextChanged(sender As Object, e As EventArgs) Handles Barcode.TextChanged
+        V_Total.Text = DataGridView_Vehicle_List.RowCount
+
+
+        Barcode_Scan()
+        DataGridView_VehicleLogs.Sort(DataGridView_VehicleLogs.Columns(9), ListSortDirection.Descending)
+
+    End Sub
+
+
+    Private Sub Barcode_Scan()
+        Dim str As String = Barcode.Text
+        Dim length As Integer = str.Length
+
+        If length = 3 Then
+            label_Total.Focus()
+
+            DataGridView_VehicleLogs.Sort(DataGridView_VehicleLogs.Columns(9), ListSortDirection.Descending)
+
+            'display info
+            Dim select_table As New MySqlCommand("SELECT * FROM Profile WHERE Barcode = '" & Barcode.Text & "' ", ServerString)
+            Dim Barcode_Reader As MySqlDataReader
+
+
+            ServerString.Open()
+            Barcode_Reader = select_table.ExecuteReader
+
+
+            If Barcode_Reader.HasRows Then
+                V_Total.Text = DataGridView_Vehicle_List.RowCount
+
+                While Barcode_Reader.Read
+                    Label_Name.Text = Barcode_Reader.GetString("First_Name")
+                    Label_Lname.Text = Barcode_Reader.GetString("Last_Name")
+                    Label_Muffle.Text = Barcode_Reader.GetString("Muffler_Type")
+                    Label_Plate.Text = Barcode_Reader.GetString("Plate_Number")
+                    Label_Vehicle.Text = Barcode_Reader.GetString("Vehicle_Type")
+                    Label_Gatepass.Text = Barcode_Reader.GetString("Gatepass_Type")
+                    Label_Privilege.Text = Barcode_Reader.GetString("Privilege")
+
+
+
+
+
+
+
+                End While
+
+                ServerString.Close()
+
+                'verify if vehicle is already inside
+                Dim verify As New MySqlCommand("SELECT * FROM vehicle_current WHERE Barcode= '" & Barcode.Text & "' ", ServerString)
+                Dim verify_Reader As MySqlDataReader
+
+
+                ServerString.Open()
+                verify_Reader = verify.ExecuteReader
+                If verify_Reader.HasRows Then
+                    ServerString.Close()
+                    MsgBox("Vehicle is already inside", vbExclamation, "Warning")
+
+
+                Else
+                    ServerString.Close()
+                    load_image()
+                    MsgBox("Authenticated", vbInformation, "Note")
+                    load_insert_current_vehicle()
+                    load_select_current_vehicle()
+                    load_insert_vehiclelogs()
+
+                End If
+
+
+                '
+
+
+
+
+
+
+
+
+
+                Barcode.Clear()
+
+
+
+            Else
+                Barcode.Clear()
+
+                MsgBox("Invalid Barcode")
+
+
+
+            End If
+
+
+            vehicle_reg_load()
+
+            ' Else
+            '    Barcode.Clear()
+        End If
+
+
+        Barcode.Focus()
+
+    End Sub
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    Private Sub Button1_Click(ByVal sender As Object, ByVal e As EventArgs)
+        Me.Hide()
+        BarGen.Show()
+
+    End Sub
+
+    Private Sub Button2_Click(ByVal sender As System.Object, ByVal e As System.EventArgs)
+        Me.Hide()
+        Registrationvb.Show()
+
+    End Sub
+
+    Private Sub load_insert_vehiclelogs()
+        ServerString.Open()
+
+        Dim ET As String
+        ET = "Entry"
+        Dim Register As New MySqlCommand("Insert into Vehicle_Logs(Barcode,Entry_Type, Plate_Number, First_Name, Last_Name, Vehicle_Type, Muffler, Time_In, Date, Gatepass_Type, Privilege) VALUES ('" & Barcode.Text & "','" & ET & "', '" & Label_Plate.Text & "', '" & Label_Name.Text & "', '" & Label_Lname.Text & "', '" & Label_Vehicle.Text & "', '" & Label_Muffle.Text & "', '" & DateTimePicker1.Text & "',  '" & DateTimePicker2.Text & "', '" & Label_Gatepass.Text & "',  '" & Label_Privilege.Text & "')", ServerString)
+        Register.ExecuteNonQuery()
+        ServerString.Close()
+    End Sub
+
+    Private Sub vehicle_reg_load()
+        ServerString = New MySqlConnection
+        ServerString.ConnectionString = "Server=localhost; user id=root; password=CasQuiLet123; Database= sample;"
+        Dim SDA As New MySqlDataAdapter
+        Dim dbDataSet As New DataTable
+
+        Dim bSource As New BindingSource
+        Try
+            ServerString.Open()
+            Dim Query As String
+            Query = "select * from sample.Vehicle_Logs"
+            COMMAND = New MySqlCommand(Query, ServerString)
+            SDA.SelectCommand = COMMAND
+            SDA.Fill(dbDataSet)
+            bSource.DataSource = dbDataSet
+            DataGridView_VehicleLogs.DataSource = bSource
+
+            SDA.Update(dbDataSet)
+
+
+            ServerString.Close()
+
+        Catch ex As Exception
+            MessageBox.Show(ex.Message)
+        Finally
+            ServerString.Dispose()
+        End Try
+    End Sub
+
+
+
+
+
+    Private Sub load_insert_current_vehicle()
+        Dim ServerString As New MySqlConnection("server= localhost; user id= root ; password= CasQuiLet123 ; database= sample;Convert Zero Datetime=True; ")
+        Try
+            ServerString.Open()
+
+            Dim InTime As New MySqlCommand("Insert into vehicle_current(Barcode, First_Name, Last_Name, Time_In, Gatepass_Type, Privilege) VALUES ( '" & Barcode.Text & "','" & Label_Name.Text & "', '" & Label_Lname.Text & "', '" & DateTimePicker1.Text & "', '" & Label_Gatepass.Text & "',  '" & Label_Privilege.Text & "')", ServerString)
+            InTime.ExecuteNonQuery()
+            ServerString.Close()
+        Catch ex As Exception
+            MessageBox.Show(ex.Message)
+
+        Finally
+            ServerString.Dispose()
+        End Try
+    End Sub
+
+    Private Sub load_select_current_vehicle()
+
+
+
+        ServerString = New MySqlConnection
+        ServerString.ConnectionString = "Server=localhost; user id=root; password=CasQuiLet123; Database= sample;"
+        Dim SDA As New MySqlDataAdapter
+        Dim dbDataSet As New DataTable
+
+        Dim bSource As New BindingSource
+        Try
+            ServerString.Open()
+            Dim Query As String
+            Query = "select * from sample.Vehicle_current"
+            COMMAND = New MySqlCommand(Query, ServerString)
+            SDA.SelectCommand = COMMAND
+            SDA.Fill(dbDataSet)
+            bSource.DataSource = dbDataSet
+            DataGridView_Vehicle_List.DataSource = bSource
+
+            SDA.Update(dbDataSet)
+
+
+            ServerString.Close()
+
+        Catch ex As Exception
+            MessageBox.Show(ex.Message)
+
+
+
+        Finally
+            ServerString.Dispose()
+
+
+
+        End Try
+
+    End Sub
+
+    Private Sub Btn_Exit_Click(sender As Object, e As EventArgs)
+
+        Me.Hide()
+        Exitvb.Show()
+    End Sub
+
+    Private Sub Button1_Click_1(sender As Object, e As EventArgs)
+        BarGen.Show()
+
+    End Sub
+    Private Sub load_image()
+        ServerString = New MySqlConnection
+        ServerString.ConnectionString = "Server=localhost; user id=root; password=CasQuiLet123; Database= sample;"
+
+
+
+        Dim command As New MySqlCommand("select * from Profile where Barcode = " & Barcode.Text & "  ", ServerString)
+
+
+        Dim table As New DataTable()
+
+        Dim adapter As New MySqlDataAdapter(command)
+
+        adapter.Fill(table)
+
+        If table.Rows.Count() <= 0 Then
+
+            MessageBox.Show("No Image For This Id")
+        Else
+
+
+
+            Dim img() As Byte
+
+            img = table.Rows(0)(8)
+
+            Dim ms As New MemoryStream(img)
+
+            PictureBox1.Image = Image.FromStream(ms)
+
+        End If
+
+
+    End Sub
+
+    Private Sub Button_Back_Click(sender As Object, e As EventArgs) Handles Button_Back.Click
+        Me.Close()
+
+        Welcome.Show()
+
+    End Sub
+
+
+
+    '-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+    '
+    '
+    '
+    '
+    '
+    '
+    '
+    '
+    '
+    '
+    '
+    '
+    '
+    '
+    '
+    '
+    '
+    '
+    '-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+
+    Private Sub Home_Load(sender As Object, e As EventArgs) Handles MyBase.Load
+        load_select_current_vehicle()
+        load_load_visitors_list()
+
+        V_Total.Text = DataGridView_Vehicle_List.RowCount
+        Barcode.Focus()
+
+
+
+        vehicle_reg_load()
+        DataGridView_VehicleLogs.Sort(DataGridView_VehicleLogs.Columns(9), ListSortDirection.Descending)
+    End Sub
+
+    Private Sub Timer1_Tick(sender As Object, e As EventArgs) Handles Timer1.Tick
+        DateTimePicker1.Value = DateTime.Now
+        If DateTimePicker1.Value = "19:00 " Then
+            load_delete_visitors_list()
+
+        End If
+
+
+
+    End Sub
+
+    Private Sub DataGridView_Vehicle_List_CellContentClick(sender As Object, e As DataGridViewCellEventArgs) Handles DataGridView_Vehicle_List.CellContentClick
+
+    End Sub
+
+    Private Sub load_load_visitors_list()
+        Dim gatepass As String
+        gatepass = "Visitor"
+        Dim reader1 As MySqlDataReader
+        Dim SDA As New MySqlDataAdapter
+        Dim dbDataSet As New DataTable
+
+        Dim bSource As New BindingSource
+        Try
+            ServerString.Open()
+            Dim Query As String
+            Query = "SELECT Barcode, First_name, Last_name, Purpose FROM Profile WHERE Gatepass_Type = '" & gatepass & "' "
+            COMMAND = New MySqlCommand(Query, ServerString)
+            SDA.SelectCommand = COMMAND
+            SDA.Fill(dbDataSet)
+            bSource.DataSource = dbDataSet
+            DataGridView_Visitors_List.DataSource = bSource
+
+            SDA.Update(dbDataSet)
+
+            reader1 = COMMAND.ExecuteReader
+            If reader1.HasRows Then
+
+                While reader1.Read
+                    txtCode.Text = Barcode_Reader.GetString("First_Name")
+                End While
+            End If
+
+
+
+            ServerString.Close()
+
+        Catch ex As Exception
+            MessageBox.Show(ex.Message)
+
+
+
+        Finally
+            ServerString.Dispose()
+
+
+
+        End Try
+    End Sub
+
+    Private Sub load_delete_visitors_list()
+        Dim READER As MySqlDataReader
+
+        Dim visitordel As String
+        visitordel = "Visitor"
+
+        Try
+            ServerString.Open()
+            Dim query As String
+
+
+            query = "Delete * from from where Gatepass_Type='" & visitordel & "'"
+            COMMAND = New MySqlCommand(query, ServerString)
+            READER = COMMAND.ExecuteReader
+
+
+
+
+
+            ServerString.Close()
+        Catch ex As MySqlException
+        Finally
+            ServerString.Dispose()
+        End Try
+    End Sub
+
+
+End Class
